@@ -1,18 +1,28 @@
-# React + Vite
+# EventHub — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface web de la plateforme EventHub : gestion d'événements (création, inscription, check-in, statistiques) pour une association.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 / Vite
+- React Router
+- Tailwind CSS
+- Axios
+- Recharts
 
-## React Compiler
+## Installation
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+```bash
+npm install
+cp .env.example .env
+```
 
-Note: This will impact Vite dev & build performances.
+Vérifier `VITE_API_URL` dans `.env` (URL de l'API backend, `http://localhost:8000/api` par défaut).
 
-## Expanding the ESLint configuration
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Backend associé
+
+[EventHub-api](https://github.com/Alecdev-10/EventHub-api) (Laravel + Sanctum).
