@@ -26,3 +26,9 @@ npm run dev
 ## Backend associé
 
 [EventHub-api](https://github.com/Alecdev-10/EventHub-api) (Laravel + Sanctum).
+
+## Déploiement (Vercel)
+
+Le dépôt racine (`EventHub2026`) contient aussi `assets/` en plus de `frontend/` : dans les réglages du projet Vercel, définir **Root Directory = `frontend`**. Le preset Vite est auto-détecté (build `npm run build`, sortie `dist`) ; `vercel.json` gère déjà la réécriture SPA nécessaire pour React Router.
+
+Variable d'environnement à définir sur Vercel : `VITE_API_URL`. Tant que le backend n'est pas déployé, la laisser vide — l'app tourne sur les données mock, seul login/register ne fonctionnera pas encore.
