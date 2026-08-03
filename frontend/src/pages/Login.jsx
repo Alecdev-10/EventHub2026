@@ -36,7 +36,7 @@ export default function Login() {
         <div className="min-h-screen bg-gradient-to-br from-[#3B82F6] to-[#2563EB] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
                 <div className="text-center mb-8">
-                    <h1 className="text-[#3B82F6] mb-2">EventFlow</h1>
+                    <h1 className="text-[#3B82F6] mb-2">EventHub</h1>
                     <p className="text-gray-600">Connectez-vous à votre compte</p>
                 </div>
 

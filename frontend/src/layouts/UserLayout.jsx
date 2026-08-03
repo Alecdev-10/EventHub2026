@@ -1,11 +1,13 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, Mail, User, LogOut, Ticket } from "lucide-react";
+import { useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
+import { Home, Calendar, Mail, User, Ticket, Menu } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import Sidebar from "../components/Sidebar";
 
 export default function UserLayout() {
-    const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const navItems = [
         { path: "/user", icon: Home, label: "Dashboard" },
@@ -22,60 +24,40 @@ export default function UserLayout() {
 
     return (
         <div className="flex h-screen bg-[#F8FAFC]">
-            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-                <div className="p-6 border-b border-gray-200">
-                    <h1 className="text-[#3B82F6]">EventFlow</h1>
-                    <p className="text-sm text-gray-500 mt-1">Espace Utilisateur</p>
-                </div>
+            <Sidebar
+                title="EventHub"
+                subtitle="Espace Utilisateur"
+                navItems={navItems}
+                onLogout={handleLogout}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
 
-                <nav className="flex-1 p-4">
-                    {navItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location.pathname === item.path;
-                        return (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-colors ${
-                                    isActive
-                                        ? "bg-[#3B82F6] text-white"
-                                        : "text-gray-700 hover:bg-gray-100"
-                                }`}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
+                                aria-label="Ouvrir le menu"
                             >
-                                <Icon className="w-5 h-5" />
-                                <span>{item.label}</span>
-                            </Link>
-                        );
-                    })}
-                </nav>
-
-                <div className="p-4 border-t border-gray-200">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        <span>Déconnexion</span>
-                    </button>
-                </div>
-            </aside>
-
-            <div className="flex-1 flex flex-col">
-                <header className="bg-white border-b border-gray-200 px-8 py-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-gray-800">Bienvenue {user?.firstName ?? ""}</h2>
-                            <p className="text-sm text-gray-500">Gérez vos événements facilement</p>
+                                <Menu className="w-6 h-6" />
+                            </button>
+                            <div className="min-w-0">
+                                <h2 className="text-gray-800 truncate">Bienvenue {user?.firstName ?? ""}</h2>
+                                <p className="text-sm text-gray-500 truncate">Gérez vos événements facilement</p>
+                            </div>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white">
+                            <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white shrink-0">
                                 <User className="w-5 h-5" />
                             </div>
                         </div>
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-auto p-8">
+                <main className="flex-1 overflow-auto p-4 md:p-8">
                     <Outlet />
                 </main>
             </div>

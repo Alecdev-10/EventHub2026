@@ -1,12 +1,6 @@
 import { User, Mail, Phone, Settings } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-
-const roleLabels = {
-    superAdmin: "Super administrateur",
-    eventManager: "Organisateur",
-    scanAgent: "Agent de scan",
-    participant: "Participant",
-};
+import { roleLabels } from "../../utils/roles";
 
 export default function Profile() {
     const { user } = useAuth();

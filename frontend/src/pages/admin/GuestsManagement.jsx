@@ -77,7 +77,7 @@ export default function GuestsManagement() {
                                         </div>
                                     </td>
                                     <td className="py-4 px-6">
-                                        <button className="px-4 py-2 text-[#3B82F6] hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2">
+                                        <button className="px-4 py-2 text-[#3B82F6] hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap">
                                             <QrCode className="w-4 h-4" />
                                             Voir QR
                                         </button>

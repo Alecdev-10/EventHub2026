@@ -1,7 +1,7 @@
 import { Calendar, MapPin, Check, X } from "lucide-react";
 
 const invitations = [
-    { id: 1, event: "Festival d'été", date: "5 Juin 2026", location: "Marseille, France", organizer: "EventFlow Team", status: "En attente" },
+    { id: 1, event: "Festival d'été", date: "5 Juin 2026", location: "Marseille, France", organizer: "EventHub Team", status: "En attente" },
     { id: 2, event: "Gala de charité", date: "20 Mai 2026", location: "Nice, France", organizer: "Association Soleil", status: "En attente" },
     { id: 3, event: "Soirée networking", date: "12 Avril 2026", location: "Paris, France", organizer: "Business Club", status: "En attente" },
     { id: 4, event: "Concert classique", date: "8 Juin 2026", location: "Lyon, France", organizer: "Orchestre National", status: "En attente" },
