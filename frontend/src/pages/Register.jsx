@@ -12,6 +12,7 @@ export default function Register() {
         email: "",
         telephone: "",
         password: "",
+        password_confirmation: "",
     });
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -23,6 +24,12 @@ export default function Register() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+
+        if (formData.password !== formData.password_confirmation) {
+            setError("Les mots de passe ne correspondent pas");
+            return;
+        }
+
         setSubmitting(true);
         try {
             await register(formData);
@@ -122,8 +129,25 @@ export default function Register() {
                                 name="password"
                                 value={formData.password}
                                 onChange={handleChange}
-                                placeholder="6 caractères minimum"
-                                minLength={6}
+                                placeholder="8 caractères min, majuscule + caractère spécial"
+                                minLength={8}
+                                className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none transition-all"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-gray-700 mb-2">Confirmer le mot de passe</label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="password"
+                                name="password_confirmation"
+                                value={formData.password_confirmation}
+                                onChange={handleChange}
+                                placeholder="Ressaisissez le mot de passe"
+                                minLength={8}
                                 className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none transition-all"
                                 required
                             />
