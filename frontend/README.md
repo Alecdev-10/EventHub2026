@@ -1,6 +1,6 @@
 # EventHub — Frontend
 
-Interface web de la plateforme EventHub : gestion d'événements (création, inscription, check-in, statistiques) pour une association.
+Interface web publique d'EventHub : parcours participant (inscription, billets) et agent de scan (check-in). Le back-office (gestion événements/invités, statistiques) vit désormais côté backend via Filament — voir [EventHub-api](https://github.com/Alecdev-10/EventHub-api).
 
 ## Stack
 
@@ -8,7 +8,6 @@ Interface web de la plateforme EventHub : gestion d'événements (création, ins
 - React Router
 - Tailwind CSS
 - Axios
-- Recharts
 
 ## Installation
 
@@ -25,7 +24,7 @@ npm run dev
 
 ## Backend associé
 
-[EventHub-api](https://github.com/Alecdev-10/EventHub-api) (Laravel + Sanctum).
+[EventHub-api](https://github.com/Alecdev-10/EventHub-api) (Laravel + Sanctum pour cette app, + Filament pour le back-office).
 
 ## Déploiement (Vercel)
 

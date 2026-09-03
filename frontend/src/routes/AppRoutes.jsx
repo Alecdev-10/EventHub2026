@@ -6,7 +6,6 @@ import LoginPage from "../pages/Login";
 import RegisterPage from "../pages/Register";
 
 import UserLayout from "../layouts/UserLayout";
-import AdminLayout from "../layouts/AdminLayout";
 import ScanAgentLayout from "../layouts/ScanAgentLayout";
 
 import UserDashboard from "../pages/user/Dashboard";
@@ -16,13 +15,6 @@ import UserTickets from "../pages/user/Tickets";
 import UserTicketDetail from "../pages/user/TicketDetail";
 import Invitations from "../pages/user/Invitations";
 import Profile from "../pages/user/Profile";
-
-import AdminDashboard from "../pages/admin/Dashboard";
-import EventsManagement from "../pages/admin/EventsManagement";
-import CreateEvent from "../pages/admin/CreateEvent";
-import GuestsManagement from "../pages/admin/GuestsManagement";
-import Statistics from "../pages/admin/Statistics";
-import QRScanner from "../pages/admin/QRScanner";
 
 import ScanAgentDashboard from "../pages/scan-agent/Dashboard";
 import ScanAgentEvents from "../pages/scan-agent/Events";
@@ -46,18 +38,7 @@ export default function AppRoutes() {
                 </Route>
             </Route>
 
-            <Route element={<ProtectedRoute roles={["superAdmin", "eventManager"]} />}>
-                <Route path="/admin" element={<AdminLayout />}>
-                    <Route index element={<AdminDashboard />} />
-                    <Route path="events" element={<EventsManagement />} />
-                    <Route path="events/new" element={<CreateEvent />} />
-                    <Route path="guests" element={<GuestsManagement />} />
-                    <Route path="statistics" element={<Statistics />} />
-                    <Route path="scanner" element={<QRScanner />} />
-                </Route>
-            </Route>
-
-            <Route element={<ProtectedRoute roles={["scanAgent"]} />}>
+            <Route element={<ProtectedRoute roles={["scanAgent", "superAdmin", "eventManager"]} />}>
                 <Route path="/scan-agent" element={<ScanAgentLayout />}>
                     <Route index element={<ScanAgentDashboard />} />
                     <Route path="events" element={<ScanAgentEvents />} />
