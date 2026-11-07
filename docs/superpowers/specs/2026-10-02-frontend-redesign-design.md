@@ -1,6 +1,7 @@
 # Refonte visuelle du frontend EventHub2026 — Design
 
 Date : 2026-10-02
+Mise à jour des choix créatifs : 2026-11-06
 Branche : `feature/frontend-redesign`
 Repo : `EventHub2026-main/frontend`
 
@@ -25,25 +26,26 @@ Sortir l'app du look Tailwind-par-défaut en construisant un vrai design system 
 ## 3. Direction créative retenue
 
 - **Personnalité de marque** : pro & rassurant — registre B2B SaaS confiant et sobre (Linear/Stripe/Notion), pas festif/flashy, pas froid/minimal à l'extrême.
-- **Couleur** : on s'éloigne du bleu Tailwind par défaut. Les valeurs hexadécimales exactes seront fournies par Alec en temps réel pendant l'implémentation — voir §4 pour la stratégie de tokens qui permet de les injecter sans réécrire le code.
-- **Typographie** : pairing à définir, fourni par Alec en temps réel (même stratégie de tokens).
+- **Couleur** : on s'éloigne du bleu Tailwind par défaut. À la demande d'Alec (« je te laisse me surprendre »), proposition de palette terre cuite, encre vert profond et ivoire ; valeurs documentées en §4.
+- **Typographie** : Fraunces pour les titres et DM Sans pour l'interface. Les deux polices sont centralisées dans les tokens et chargées depuis Google Fonts.
 - **Motion** : subtil et fonctionnel — micro-interactions soignées, pas de moments d'animation "signature" spectaculaires.
 - **Theming multi-client** : explicitement **hors scope maintenant**. Une seule identité forte et cohérente est construite. Comme Tailwind v4 génère déjà des variables CSS depuis `@theme`, un swap de palette futur restera simple le jour où un besoin client concret apparaît — pas de couche de config à construire par anticipation.
 - **Espace scan-agent** : variante sobre et rapide du même design system (mêmes tokens/composants de base), priorité à la lisibilité/contraste et à la vitesse plutôt qu'à la richesse visuelle — c'est un outil utilisé par du personnel pendant un événement en direct, pas une vitrine.
 - **Identité "EventHub"** : un wordmark + un symbole géométrique simple (SVG/CSS, pas de designer externe), pas juste du texte stylisé.
+- **Retour d’Alec au premier checkpoint** : l’accroche anglaise a été remplacée par une formulation en français centrée sur l’entreprise et ses activités ; Register reprend la même identité, et les champs mot de passe peuvent afficher/masquer la saisie.
 
 ## 4. Architecture des tokens
 
-Tout est défini via le bloc `@theme` de Tailwind v4 (CSS-first, pas de `tailwind.config.js`) dans `src/index.css`. Tokens nommés sémantiquement, avec des valeurs **placeholder** posées maintenant et remplacées quand Alec fournit la charte définitive — un seul point de modification au lieu de 14 fichiers :
+Tout est défini via le bloc `@theme` de Tailwind v4 (CSS-first, pas de `tailwind.config.js`) dans `src/index.css`. Les tokens sémantiques centralisent les valeurs retenues pour cette proposition — un seul point de modification au lieu de 14 fichiers :
 
-- Couleur : `--color-brand`, `--color-brand-strong`, `--color-brand-subtle`, `--color-ink` (texte principal), `--color-ink-muted`, `--color-surface`, `--color-surface-alt`, `--color-border`, `--color-success`, `--color-warning`, `--color-danger`, `--color-info`.
-- Typographie : `--font-display`, `--font-body`, plus une échelle de titres (tailles + line-height) pour corriger le bug `inherit` du §1.
+- Couleur : `--color-brand: #A95036`, `--color-brand-strong: #843A28`, `--color-brand-subtle: #F1E4DD`, `--color-ink: #222923`, `--color-ink-muted: #6B736D`, `--color-surface: #FFFEFA`, `--color-surface-alt: #F3F1EB`, `--color-border: #E4E0D7`, `--color-success: #26734D`, `--color-warning: #A65B16`, `--color-danger: #B33C38`, `--color-info: #426B78`.
+- Typographie : `--font-display: Fraunces`, `--font-body: DM Sans`, plus une échelle de titres (tailles + line-height) pour corriger le bug `inherit` du §1.
 - Forme : `--radius-sm` / `--radius-md` / `--radius-lg`, `--shadow-sm` / `--shadow-md`.
 - Motion : `--ease-standard`, `--duration-fast`, `--duration-base`.
 
 Les couleurs sémantiques de statut (`success`/`warning`/`danger`) remplacent les classes Tailwind littérales actuelles (`bg-green-500`, `text-orange-600`, etc. dispersées dans le code) par des tokens centralisés, tout en gardant la même intention visuelle (vert=succès, orange=attention, rouge=erreur) pour ne pas casser la compréhension existante des statuts billet/événement/invitation.
 
-L'implémentation ne bloque pas sur la réception de la charte finale : elle démarre avec les valeurs placeholder, et chaque valeur reçue d'Alec est injectée dans `@theme` dès qu'elle arrive, sans attendre d'avoir la palette et la typographie complètes.
+Cette palette et ce pairing sont la proposition créative demandée par Alec. Ils peuvent être affinés en modifiant uniquement les tokens et les liens de chargement de police.
 
 ## 5. Composants UI partagés
 
@@ -62,7 +64,7 @@ Explicitement exclus car aucun pattern existant ne les justifie : Modal, Table, 
 
 ## 6. Architecture motion
 
-Nouvelle dépendance : `framer-motion` (publié aussi sous le nom `motion` — même code, même version actuelle 13.5.0, compatible React 19 d'après vérification npm). Choisi plutôt que GSAP, qui cible surtout le scroll-storytelling complexe sur des sites vitrine — absent ici (pas de page marketing publique, l'app commence directement sur `/Login`).
+Nouvelle dépendance : `framer-motion` (publié aussi sous le nom `motion`, version installée `14.10.1`, compatible React 19). Choisi plutôt que GSAP, qui cible surtout le scroll-storytelling complexe sur des sites vitrine — absent ici (pas de page marketing publique, l'app commence directement sur `/Login`).
 
 Répartition CSS vs JS :
 - **CSS/Tailwind** (pas de JS) pour les micro-interactions simples et peu coûteuses : hover de carte, focus d'input, transitions de couleur sur bouton. Ces comportements sont déjà en grande partie présents via `transition-colors` dans le code actuel.

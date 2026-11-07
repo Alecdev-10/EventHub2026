@@ -1,125 +1,76 @@
+import { useCallback, useEffect, useState } from "react";
+import { createElement } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Mail, CheckCircle, ArrowRight } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle, Ticket } from "lucide-react";
 import ImageWithFallback from "../../components/ImageWithFallback";
-import { events } from "../../mocks/events";
-import { formatDate } from "../../utils/format";
-
-const recentInvitations = [
-    { name: "Festival d'été", date: "5 Juin 2026", status: "En attente" },
-    { name: "Gala de charité", date: "20 Mai 2026", status: "En attente" },
-];
+import { getEvents, getMyTickets } from "../../api/EventApi";
+import { formatDate, formatTime, ticketStatusLabels } from "../../utils/format";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import EmptyState from "../../components/ui/EmptyState";
+import PageHeader from "../../components/ui/PageHeader";
 
 export default function UserDashboard() {
-    const upcomingEvents = events.filter((event) => event.status === "published").slice(0, 2);
+    const [events, setEvents] = useState([]);
+    const [tickets, setTickets] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    const loadDashboard = useCallback(async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            const [eventData, ticketData] = await Promise.all([getEvents(), getMyTickets()]);
+            setEvents(eventData);
+            setTickets(ticketData);
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadDashboard(); }, [loadDashboard]);
+
+    const now = Date.now();
+    const upcomingEvents = events.filter((event) => event.status === "published" && new Date(event.startDate).getTime() > now).slice(0, 3);
+    const activeTickets = tickets.filter((ticket) => ["confirmed", "checkedIn"].includes(ticket.status));
 
     return (
-        <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-                <h1>Mon Dashboard</h1>
-                <p className="text-gray-600 mt-2">Aperçu de vos événements et invitations</p>
-            </div>
+        <div className="mx-auto max-w-7xl">
+            <PageHeader title="Mon espace" description="Retrouvez vos événements et vos inscriptions au même endroit." action={<Link to="/user/events" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-brand px-4 py-2.5 text-sm font-semibold text-brand transition-colors duration-fast hover:bg-brand-subtle">Explorer les événements<ArrowRight aria-hidden="true" className="h-4 w-4" /></Link>} />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <Calendar className="w-6 h-6 text-[#3B82F6]" />
-                        </div>
+            {error ? (
+                <Card><EmptyState title="Votre espace est indisponible" description="Impossible de charger vos événements et billets depuis le serveur." action={<Button type="button" variant="outline" onClick={loadDashboard}>Réessayer</Button>} /></Card>
+            ) : loading ? (
+                <div role="status" className="rounded-lg border border-border bg-surface px-6 py-10 text-center text-sm text-ink-muted">Chargement de votre espace…</div>
+            ) : (
+                <>
+                    <div className="mb-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        {[["Événements à venir", events.filter((event) => event.status === "published" && new Date(event.startDate).getTime() > now).length, CalendarDays, "bg-brand-subtle text-brand"], ["Mes billets", tickets.length, Ticket, "bg-warning/10 text-warning"], ["Inscriptions actives", activeTickets.length, CheckCircle, "bg-success/10 text-success"]].map(([label, value, Icon, tone]) => <Card key={label} className="p-5 sm:p-6"><span className={["mb-6 grid h-11 w-11 place-items-center rounded-md", tone].join(" ")}>{createElement(Icon, { "aria-hidden": true, className: "h-5 w-5" })}</span><p className="text-sm font-medium text-ink-muted">{label}</p><p className="mt-1 text-4xl font-semibold tracking-tight text-ink">{value}</p></Card>)}
                     </div>
-                    <h3 className="text-gray-800">Événements à venir</h3>
-                    <p className="text-3xl text-[#3B82F6] mt-2">5</p>
-                </div>
 
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <Mail className="w-6 h-6 text-orange-500" />
-                        </div>
+                    <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+                        <Card className="overflow-hidden">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-5 sm:px-7"><div><p className="text-sm font-semibold text-brand">À votre agenda</p><h2 className="mt-2 text-xl">Événements à venir</h2></div><Link to="/user/events" className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand-strong">Tout voir<ArrowRight aria-hidden="true" className="h-4 w-4" /></Link></div>
+                            {upcomingEvents.length === 0 ? <div className="p-5"><EmptyState title="Aucun événement à venir" description="Les prochains événements publiés par votre entreprise apparaîtront ici." /></div> : (
+                                <div className="divide-y divide-border">
+                                    {upcomingEvents.map((event) => <Link key={event.id} to={`/user/events/${event.id}`} className="group flex flex-col gap-4 p-5 transition-colors duration-fast hover:bg-surface-alt sm:flex-row sm:items-center sm:p-6"><ImageWithFallback src={event.image} alt={event.title} className="h-36 w-full rounded-md object-cover sm:h-20 sm:w-24" /><div className="min-w-0 flex-1"><h3 className="truncate text-base">{event.title}</h3><p className="mt-2 text-sm text-ink-muted">{formatDate(event.startDate)} · {formatTime(event.startDate)} · {event.location}</p></div><span className="inline-flex items-center gap-2 text-sm font-semibold text-brand">Détails<ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span></Link>)}
+                                </div>
+                            )}
+                        </Card>
+
+                        <Card className="overflow-hidden">
+                            <div className="flex items-center justify-between border-b border-border px-5 py-5 sm:px-6"><div><p className="text-sm font-semibold text-brand">Votre activité</p><h2 className="mt-2 text-xl">Inscriptions récentes</h2></div><Ticket aria-hidden="true" className="h-5 w-5 text-brand" /></div>
+                            {tickets.length === 0 ? <div className="p-5"><EmptyState title="Aucune inscription" description="Vos billets apparaîtront ici après votre inscription à un événement." /></div> : (
+                                <div className="divide-y divide-border">{tickets.slice(0, 4).map((ticket) => <Link key={ticket.id} to={`/user/tickets/${ticket.id}`} className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-surface-alt sm:px-6"><div className="min-w-0"><h3 className="truncate text-sm font-medium">{ticket.event?.title ?? "Événement"}</h3><p className="mt-1 text-xs text-ink-muted">{ticket.event?.startDate ? formatDate(ticket.event.startDate) : ""}</p></div><Badge tone={ticket.status === "confirmed" ? "success" : "neutral"}>{ticketStatusLabels[ticket.status] ?? ticket.status}</Badge></Link>)}</div>
+                            )}
+                            <div className="border-t border-border p-5 sm:px-6"><Link to="/user/tickets" className="flex min-h-11 w-full items-center justify-between text-sm font-semibold text-brand hover:text-brand-strong">Tous mes billets<ArrowRight aria-hidden="true" className="h-4 w-4" /></Link></div>
+                        </Card>
                     </div>
-                    <h3 className="text-gray-800">Invitations reçues</h3>
-                    <p className="text-3xl text-orange-500 mt-2">3</p>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                            <CheckCircle className="w-6 h-6 text-green-500" />
-                        </div>
-                    </div>
-                    <h3 className="text-gray-800">Événements confirmés</h3>
-                    <p className="text-3xl text-green-500 mt-2">8</p>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h2>Événements à venir</h2>
-                    <Link
-                        to="/user/events"
-                        className="flex items-center gap-2 text-[#3B82F6] hover:underline"
-                    >
-                        Voir tous
-                        <ArrowRight className="w-4 h-4" />
-                    </Link>
-                </div>
-
-                <div className="space-y-4">
-                    {upcomingEvents.map((event) => (
-                        <div
-                            key={event.id}
-                            className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                            <ImageWithFallback
-                                src={event.image}
-                                alt={event.title}
-                                className="w-20 h-20 rounded-lg object-cover"
-                            />
-                            <div className="flex-1">
-                                <h4 className="text-gray-800">{event.title}</h4>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {formatDate(event.startDate)} • {event.location}
-                                </p>
-                            </div>
-                            <Link
-                                to={`/user/events/${event.id}`}
-                                className="px-4 py-2 bg-[#3B82F6] text-white rounded-lg hover:bg-[#2563EB] transition-colors"
-                            >
-                                Détails
-                            </Link>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                <div className="flex items-center justify-between mb-6">
-                    <h2>Invitations récentes</h2>
-                    <Link
-                        to="/user/invitations"
-                        className="flex items-center gap-2 text-[#3B82F6] hover:underline"
-                    >
-                        Voir toutes
-                        <ArrowRight className="w-4 h-4" />
-                    </Link>
-                </div>
-
-                <div className="space-y-3">
-                    {recentInvitations.map((invitation, idx) => (
-                        <div
-                            key={idx}
-                            className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                        >
-                            <div>
-                                <h4 className="text-gray-800">{invitation.name}</h4>
-                                <p className="text-sm text-gray-500 mt-1">{invitation.date}</p>
-                            </div>
-                            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm">
-                                {invitation.status}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </div>
+                </>
+            )}
         </div>
     );
 }

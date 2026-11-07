@@ -12,11 +12,12 @@
 
 ## Global Constraints
 
-- Aucun changement à la logique métier, aux routes ou aux appels API.
+- Aucun changement à la logique métier, aux routes, aux endpoints ou au schéma API. La configuration CORS locale de l’API autorise aussi `http://127.0.0.1:5173`, origine utilisée par l’aperçu.
 - Le Scanner reste simulé ; son branchement caméra/API reste hors périmètre.
 - Pas de dark mode ni de système de theming multi-client.
-- Les couleurs et les polices finales seront fournies par Alec ; les valeurs provisoires ne doivent pas être considérées comme la charte finale.
+- Alec a délégué la première proposition créative (« je te laisse me surprendre ») : le checkpoint utilise la palette terre cuite / encre vert profond / ivoire et le pairing Fraunces + DM Sans ; validation à recueillir sur le rendu Login + Dashboard.
 - Le scan-agent garde la même base visuelle avec priorité à la lisibilité, au contraste et au feedback rapide.
+- Les micro-interactions de champ et de bouton restent brèves ; la parallaxe décorative du panneau de marque est plafonnée à 10 px et désactivée avec `prefers-reduced-motion`.
 - Respecter `prefers-reduced-motion` pour toutes les animations non essentielles.
 - Ne créer que les primitives justifiées par les écrans existants : Button, Card, Badge, Input, EmptyState, PageHeader, échelle de titres et Logo.
 - Pas de co-auteur Claude dans les commits et aucun push sans accord explicite d’Alec.
@@ -28,6 +29,13 @@
 - Listes vides : EmptyState propose une action cohérente si elle existe déjà, sans fabriquer de nouvelle logique métier.
 - URL d’événement ou de billet inconnue : état introuvable conserve son lien de retour et le style de navigation.
 - Préférence OS de réduction des animations : pas de translation/cascade non essentielle ; résultat du scan reste immédiat et compréhensible.
+
+## Follow-up : navigation, sortie et confidentialité
+
+- Les routes publiques canoniques deviennent `/login` et `/register`; les anciennes variantes PascalCase redirigent vers ces URL avec remplacement d’historique.
+- La déconnexion depuis la barre latérale demande une confirmation accessible, cohérente avec les composants existants.
+- La page de détail d’événement ne révèle aucun nom de participant. Le nombre global d’inscrits peut rester visible comme donnée agrégée.
+- Le flux de connexion du back-office est distinct de la SPA : le panneau Filament utilise une session web, tandis que le login React délivre un jeton Sanctum. Ne pas assimiler les deux ni rediriger silencieusement vers une route SPA inexistante.
 
 ---
 
@@ -59,12 +67,12 @@
 
 **Interfaces:**
 - Produit les variables Tailwind v4 sémantiques : brand/brand-strong/brand-subtle, ink/ink-muted, surface/surface-alt, border, success/warning/danger/info, font-display/body, radius-sm/md/lg, shadow-sm/md, ease-standard et duration-fast/base.
-- Les valeurs couleur et font restent provisoires jusqu’à réception de la charte d’Alec.
+- Les valeurs couleur et font sont la proposition créative décrite dans la spec ; les affiner au checkpoint si Alec le demande.
 
-- [ ] Remplacer le CSS brut par `@theme` et les tokens listés dans la spec.
-- [ ] Définir les styles globaux du body et une échelle explicite h1–h4 afin de corriger le `inherit` du preflight.
-- [ ] Vérifier que les classes Tailwind construites depuis les noms sémantiques se compilent : `npm run build` depuis `frontend/`.
-- [ ] Vérifier `npm run lint` depuis `frontend/`.
+- [x] Remplacer le CSS brut par `@theme` et les tokens listés dans la spec.
+- [x] Définir les styles globaux du body et une échelle explicite h1–h4 afin de corriger le `inherit` du preflight.
+- [x] Vérifier que les classes Tailwind construites depuis les noms sémantiques se compilent : `npm run build` depuis `frontend/`.
+- [x] Vérifier `npm run lint` depuis `frontend/`.
 
 ### Task 2: Créer les primitives d’interface et le wordmark
 
@@ -82,14 +90,14 @@
 - `Button({ variant = "solid", loading = false, disabled, className, children, ...buttonProps })` : variantes solid, outline, ghost ; loading désactive le bouton et conserve son contenu accessible.
 - `Card({ className, children, ...divProps })` : surface cohérente et extensible par composition.
 - `Badge({ tone = "neutral", children, className })` : tons neutral, brand, success, warning, danger, info.
-- `Input({ id, label, icon: Icon, error, className, ...inputProps })` : label associé, icône optionnelle, erreur annoncée et liée au champ.
+- `Input({ id, label, icon: Icon, endAdornment, error, className, ...inputProps })` : label associé, icône optionnelle, action suffixe (ex. afficher/masquer le mot de passe), erreur annoncée et liée au champ.
 - `EmptyState({ icon: Icon, title, description, action })` : action optionnelle.
 - `PageHeader({ title, description, action })` : titre de page et description optionnelle.
 - `Heading({ as = "h2", className, children })` : niveaux h1–h4 sans casser la sémantique HTML.
 - `Logo({ compact = false, className })` : symbole géométrique SVG et wordmark ; compact masque le mot seulement si l’espace l’exige.
 
-- [ ] Implémenter les primitives avec les tokens de Task 1, sans ajouter de dépendance de composants.
-- [ ] Confirmer par lint/build que chaque export est importable et que les props transmises restent valides.
+- [x] Implémenter les primitives avec les tokens de Task 1, sans ajouter de dépendance de composants.
+- [x] Confirmer par lint/build que chaque export est importable et que les props transmises restent valides.
 
 ### Task 3: Ajouter les composants motion partagés
 
@@ -106,10 +114,10 @@
 - `Stagger({ children, disabled = false, className })` et `StaggerItem({ children, className })` fournissent une entrée en cascade discrète ; `disabled` rend les éléments immédiatement.
 - Les deux layouts remplacent leur `<Outlet />` par `<PageTransition />`. Le layout scan-agent désactive les cascades de listes au niveau de ses pages.
 
-- [ ] Ajouter `framer-motion` avec le gestionnaire npm et mettre à jour le lockfile.
-- [ ] Implémenter PageTransition avec `AnimatePresence` et les animations conditionnées par reduced-motion.
-- [ ] Implémenter Stagger et StaggerItem avec une option de rendu immédiat.
-- [ ] Intégrer PageTransition dans les deux layouts sans changer la sidebar responsive, les menus, ni le contenu des headers.
+- [x] Ajouter `framer-motion` avec le gestionnaire npm et mettre à jour le lockfile.
+- [x] Implémenter PageTransition avec `AnimatePresence` et les animations conditionnées par reduced-motion.
+- [x] Implémenter Stagger et StaggerItem avec une option de rendu immédiat.
+- [x] Intégrer PageTransition dans les deux layouts sans changer la sidebar responsive, les menus, ni le contenu des headers.
 - [ ] Vérifier build/lint et naviguer entre deux routes dans chaque layout ; confirmer que chaque page reste montée et que la route active s’affiche.
 
 ### Task 4: Première tranche visible — Login et Dashboard participant
@@ -124,11 +132,11 @@
 - Ces écrans utilisent Button, Card, Input, PageHeader, Heading et Logo.
 - Les statistiques et événements du Dashboard utilisent Stagger/StaggerItem ; la navigation et les micro-interactions simples restent CSS.
 
-- [ ] Remplacer la mise en page et les styles Tailwind codés en dur par les primitives et tokens.
-- [ ] Garder exactement le flux login, ses champs, son message d’erreur, son indicateur de chargement et ses destinations.
-- [ ] Appliquer Logo dans Sidebar et préserver l’ouverture/fermeture mobile de la sidebar.
-- [ ] Donner à Dashboard une hiérarchie claire entre titre, métriques et événements.
-- [ ] Vérifier Login et Dashboard sur grand écran et mobile, puis demander à Alec de valider le rendu avant de dérouler les autres pages.
+- [x] Remplacer la mise en page et les styles Tailwind codés en dur par les primitives et tokens.
+- [x] Garder exactement le flux login, ses champs, son message d’erreur, son indicateur de chargement et ses destinations.
+- [x] Appliquer Logo dans Sidebar et préserver l’ouverture/fermeture mobile de la sidebar.
+- [x] Donner à Dashboard une hiérarchie claire entre titre, métriques et événements.
+- [x] Présenter les premiers écrans au checkpoint et intégrer les retours d’Alec sur la formulation française, Register et l’affichage des mots de passe.
 
 ### Task 5: Restyler Register et les pages événements/billets du participant
 
@@ -143,10 +151,10 @@
 - Utilise les primitives validées à Task 4 ; aucune nouvelle API de composant.
 - Stagger est appliqué aux cartes de listes ; les états introuvables gardent leurs liens de retour.
 
-- [ ] Migrer le formulaire Register vers Input, Button, Logo, Heading et les styles de feedback partagés.
-- [ ] Migrer les cartes d’événements, détails et billets vers Card, Badge, Button, EmptyState et tokens.
-- [ ] Garder les liens, données mockées, conditions de statut, QR illustratifs et actions existantes inchangés fonctionnellement.
-- [ ] Vérifier les routes de liste, détail, état introuvable et liste vide à largeur mobile et desktop.
+- [x] Migrer le formulaire Register vers Input, Button, Logo, Heading et les styles de feedback partagés.
+- [x] Migrer les cartes d’événements, détails et billets vers Card, Badge, Button, EmptyState et tokens.
+- [x] Garder les liens, données mockées, conditions de statut, QR illustratifs et actions existantes inchangés fonctionnellement.
+- [x] Vérifier le rendu de Register et le contrôle afficher/masquer ; les routes participant protégées restent à parcourir dans une session authentifiée.
 
 ### Task 6: Restyler Invitations et Profil participant
 
@@ -157,8 +165,8 @@
 **Interfaces:**
 - Utilise PageHeader, Heading, Card, Badge, Button et tokens validés.
 
-- [ ] Restyler les lignes/cartes d’invitation et leurs statuts sans ajouter de logique d’acceptation/refus.
-- [ ] Restyler les cartes de profil, informations et préférences en conservant leur contenu et contrôles existants.
+- [x] Restyler les lignes/cartes d’invitation et leurs statuts sans ajouter de logique d’acceptation/refus.
+- [x] Restyler les cartes de profil, informations et préférences en conservant leur contenu et contrôles existants.
 - [ ] Vérifier la lisibilité des valeurs longues, des labels et des contrôles sur mobile.
 
 ### Task 7: Appliquer la variante scan-agent
@@ -173,9 +181,9 @@
 - Utilise les mêmes tokens et primitives UI que le participant.
 - Les listes et métriques scan-agent utilisent Stagger disabled ou aucun wrapper ; le feedback de scan conserve une transition courte et reduced-motion compatible.
 
-- [ ] Restyler shell, dashboard, événements et scanner avec contraste renforcé et commandes lisibles rapidement.
-- [ ] Garder la zone de scan, ses états prêt/traitement/valide/déjà utilisé/invalide et le timer simulé fonctionnellement inchangés.
-- [ ] Éviter toute animation en cascade pendant l’usage opérationnel ; conserver uniquement un feedback d’état bref.
+- [x] Restyler shell, dashboard, événements et scanner avec contraste renforcé et commandes lisibles rapidement.
+- [x] Garder la zone de scan, ses états prêt/traitement/valide/déjà utilisé/invalide et le timer simulé fonctionnellement inchangés.
+- [x] Éviter toute animation en cascade pendant l’usage opérationnel ; conserver uniquement un feedback d’état bref.
 - [ ] Vérifier les scénarios de scan simulés et l’utilisation du layout sur mobile.
 
 ### Task 8: Revue visuelle et cohérence finale
@@ -183,8 +191,8 @@
 **Fichiers:**
 - Modifier au besoin : `frontend/src/index.css`, `frontend/index.html`, tous les fichiers du périmètre ci-dessus.
 
-- [ ] Remplacer les valeurs provisoires dans les tokens par les couleurs et polices communiquées par Alec ; ajuster le chargement de police dans index.html si nécessaire.
-- [ ] Rechercher les usages résiduels du bleu Tailwind codé en dur et les couleurs d’état dispersées ; migrer les occurrences de présentation vers les tokens sémantiques.
-- [ ] Parcourir les 12 routes : Login, Register, 7 routes participant (Dashboard, liste/détail événement, liste/détail billet, Invitations, Profil) et 3 routes scan-agent.
+- [x] Enregistrer la palette retenue dans les tokens et charger Fraunces + DM Sans dans index.html.
+- [x] Rechercher les usages résiduels du bleu Tailwind codé en dur et les couleurs d’état dispersées ; migrer les occurrences de présentation vers les tokens sémantiques.
+- [ ] Parcourir les 12 routes : Login, Register, 7 routes participant (Dashboard, liste/détail événement, liste/détail billet, Invitations, Profil) et 3 routes scan-agent. Les routes protégées redirigent sans session ; une vérification visuelle authentifiée reste à faire.
 - [ ] Contrôler les formats responsive, erreurs de formulaire, états vides/introuvables et reduced-motion.
-- [ ] Exécuter `npm run lint` et `npm run build` depuis `frontend/`; corriger les erreurs avant clôture.
+- [x] Exécuter `npm run lint` et `npm run build` depuis `frontend/`; corriger les erreurs avant clôture.

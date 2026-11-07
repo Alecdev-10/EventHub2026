@@ -1,185 +1,175 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, MapPin, User, Ticket, Download, CheckCircle, XCircle } from "lucide-react";
-import { getTicketById } from "../../mocks/tickets";
-import { formatDate, formatTime, ticketStatusLabels } from "../../utils/format";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import {
+    ArrowLeft,
+    CalendarDays,
+    CheckCircle,
+    MapPin,
+    Ticket,
+    UserRound,
+    XCircle,
+} from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { cancelTicket, getMyTickets } from "../../api/EventApi";
+import { useToast } from "../../contexts/ToastContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { formatDate, formatTime, ticketStatusLabels } from "../../utils/format";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import EmptyState from "../../components/ui/EmptyState";
 
 export default function UserTicketDetail() {
     const { id } = useParams();
     const { user } = useAuth();
-    const ticket = getTicketById(id);
+    const { notify } = useToast();
+    const [ticket, setTicket] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [pending, setPending] = useState(false);
 
-    if (!ticket) {
+    const loadTicket = useCallback(async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            const userTickets = await getMyTickets();
+            setTicket(userTickets.find((item) => String(item.id) === String(id)) ?? null);
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        loadTicket();
+    }, [loadTicket]);
+
+    const handleCancel = async () => {
+        if (!window.confirm("Voulez-vous annuler votre inscription à cet événement ?")) return;
+        setPending(true);
+        try {
+            await cancelTicket(ticket.id);
+            setTicket((current) => ({ ...current, status: "cancelled", cancelledAt: new Date().toISOString() }));
+            notify({ tone: "success", title: "Inscription annulée", description: ticket.event?.title ?? "Événement" });
+        } catch (requestError) {
+            const message = requestError.response?.data?.message
+                ?? "L’annulation n’a pas abouti. Vérifiez votre connexion puis réessayez.";
+            notify({ tone: "error", title: "Annulation impossible", description: message });
+        } finally {
+            setPending(false);
+        }
+    };
+
+    if (loading) {
+        return <div role="status" className="mx-auto max-w-4xl rounded-lg border border-border bg-surface px-6 py-10 text-center text-sm text-ink-muted">Chargement du billet…</div>;
+    }
+
+    if (error || !ticket) {
         return (
-            <div className="max-w-4xl mx-auto text-center py-12">
-                <p className="text-gray-500">Billet introuvable.</p>
-                <Link to="/user/tickets" className="text-[#3B82F6] hover:underline">
-                    Retour à mes billets
-                </Link>
+            <div className="mx-auto max-w-4xl">
+                <Card>
+                    <EmptyState
+                        icon={Ticket}
+                        title={error ? "Billet indisponible" : "Billet introuvable"}
+                        description={error ? "Vérifiez votre connexion au serveur puis réessayez." : "Ce billet n’est plus disponible à cette adresse."}
+                        action={error ? (
+                            <Button type="button" variant="outline" onClick={loadTicket}>Réessayer</Button>
+                        ) : (
+                            <Link to="/user/tickets" className="inline-flex min-h-11 items-center rounded-md bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-strong">Retour à mes billets</Link>
+                        )}
+                    />
+                </Card>
             </div>
         );
     }
 
-    const isValid = ticket.status === "confirmed";
+    const event = ticket.event ?? {};
+    const isValid = ticket.status === "confirmed" && event.status === "published";
+    const canCancel = isValid && new Date(event.startDate).getTime() > Date.now();
+    const ticketLabel = event.status === "cancelled"
+        ? "Événement annulé"
+        : event.status === "ended" ? "Événement terminé"
+            : event.status !== "published" ? "Accès suspendu"
+                : ticketStatusLabels[ticket.status] ?? ticket.status;
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <Link
-                to="/user/tickets"
-                className="inline-flex items-center gap-2 text-[#3B82F6] hover:underline mb-6"
-            >
-                <ArrowLeft className="w-4 h-4" />
-                Retour à mes billets
+        <div className="mx-auto max-w-4xl">
+            <Link to="/user/tickets" className="mb-5 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-brand hover:text-brand-strong">
+                <ArrowLeft aria-hidden="true" className="h-4 w-4" /> Mes billets
             </Link>
 
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
-                <div className="bg-gradient-to-r from-[#3B82F6] to-[#2563EB] p-8 text-white">
-                    <div className="flex items-start justify-between mb-6">
+            <Card className="overflow-hidden">
+                <div className="relative overflow-hidden bg-ink px-5 py-7 text-white sm:px-8 sm:py-9">
+                    <div className="absolute -right-16 -top-28 h-72 w-72 rounded-full border border-white/10" />
+                    <div className="relative flex flex-wrap items-start justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                                <Ticket className="w-7 h-7" />
-                            </div>
+                            <span className="grid h-11 w-11 place-items-center rounded-md bg-brand text-white"><Ticket aria-hidden="true" className="h-5 w-5" /></span>
                             <div>
-                                <p className="text-sm opacity-90">Billet d'entrée</p>
-                                <p className="text-xs opacity-75 mt-1">{ticket.ticketNumber}</p>
+                                <p className="text-sm text-white/70">Billet d’entrée</p>
+                                {isValid && <p className="mt-1 break-all text-xs tracking-wide text-white/60">{ticket.qrCode}</p>}
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            {isValid ? (
-                                <span className="px-4 py-2 bg-green-500 bg-opacity-90 rounded-lg flex items-center gap-2">
-                                    <CheckCircle className="w-5 h-5" />
-                                    {ticketStatusLabels[ticket.status]}
-                                </span>
-                            ) : (
-                                <span className="px-4 py-2 bg-gray-500 bg-opacity-90 rounded-lg flex items-center gap-2">
-                                    <XCircle className="w-5 h-5" />
-                                    {ticketStatusLabels[ticket.status]}
-                                </span>
-                            )}
-                        </div>
+                        <Badge tone={isValid ? "success" : "neutral"} className="px-3 py-1.5">
+                            {isValid ? <CheckCircle aria-hidden="true" className="h-4 w-4" /> : <XCircle aria-hidden="true" className="h-4 w-4" />}
+                            {ticketLabel}
+                        </Badge>
                     </div>
-                    <h1 className="mb-3">{ticket.eventTitle}</h1>
-                    <p className="opacity-90">Présentez ce billet à l'entrée de l'événement</p>
+                    <h1 className="relative mt-7 text-3xl text-white sm:text-4xl">{event.title ?? "Événement"}</h1>
+                    <p className="relative mt-2 text-sm text-white/65">Conservez le code de billet pour retrouver votre inscription.</p>
                 </div>
 
-                <div className="p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="mb-4">Informations de l'événement</h3>
-                                <div className="space-y-4">
-                                    <div className="flex items-start gap-3">
-                                        <Calendar className="w-5 h-5 text-[#3B82F6] mt-1" />
-                                        <div>
-                                            <p className="text-sm text-gray-500">Date et heure</p>
-                                            <p className="text-gray-800">{formatDate(ticket.generatedAt)}</p>
-                                            <p className="text-gray-800">{formatTime(ticket.generatedAt)}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <MapPin className="w-5 h-5 text-[#3B82F6] mt-1" />
-                                        <div>
-                                            <p className="text-sm text-gray-500">Lieu</p>
-                                            <p className="text-gray-800">{ticket.eventLocation}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="mb-4">Informations du participant</h3>
-                                <div className="space-y-4">
-                                    <div className="flex items-start gap-3">
-                                        <User className="w-5 h-5 text-[#3B82F6] mt-1" />
-                                        <div>
-                                            <p className="text-sm text-gray-500">Nom</p>
-                                            <p className="text-gray-800">
-                                                {user ? `${user.firstName} ${user.name}` : "—"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <Ticket className="w-5 h-5 text-[#3B82F6] mt-1" />
-                                        <div>
-                                            <p className="text-sm text-gray-500">Numéro de billet</p>
-                                            <p className="text-gray-800 font-mono">{ticket.ticketNumber}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h3 className="mb-4">Code QR</h3>
-                            <div className="bg-gradient-to-br from-[#3B82F6] to-[#2563EB] rounded-xl p-6 text-white">
-                                <p className="text-sm text-center opacity-90 mb-4">
-                                    Présentez ce code à l'entrée
-                                </p>
-                                <div className="bg-white rounded-lg p-6">
-                                    <svg viewBox="0 0 200 200" className="w-full h-full">
-                                        <rect x="0" y="0" width="200" height="200" fill="white" />
-                                        <rect x="10" y="10" width="50" height="50" fill="black" />
-                                        <rect x="20" y="20" width="30" height="30" fill="white" />
-                                        <rect x="25" y="25" width="20" height="20" fill="black" />
-
-                                        <rect x="140" y="10" width="50" height="50" fill="black" />
-                                        <rect x="150" y="20" width="30" height="30" fill="white" />
-                                        <rect x="155" y="25" width="20" height="20" fill="black" />
-
-                                        <rect x="10" y="140" width="50" height="50" fill="black" />
-                                        <rect x="20" y="150" width="30" height="30" fill="white" />
-                                        <rect x="25" y="155" width="20" height="20" fill="black" />
-
-                                        <rect x="70" y="30" width="10" height="10" fill="black" />
-                                        <rect x="90" y="30" width="10" height="10" fill="black" />
-                                        <rect x="110" y="30" width="10" height="10" fill="black" />
-
-                                        <rect x="70" y="70" width="60" height="60" fill="black" />
-                                        <rect x="80" y="80" width="40" height="40" fill="white" />
-                                        <rect x="90" y="90" width="20" height="20" fill="black" />
-
-                                        <rect x="150" y="70" width="10" height="10" fill="black" />
-                                        <rect x="170" y="70" width="10" height="10" fill="black" />
-
-                                        <rect x="30" y="170" width="10" height="10" fill="black" />
-                                        <rect x="70" y="150" width="10" height="10" fill="black" />
-                                        <rect x="90" y="150" width="10" height="10" fill="black" />
-                                        <rect x="110" y="150" width="10" height="10" fill="black" />
-                                        <rect x="130" y="150" width="10" height="10" fill="black" />
-                                        <rect x="150" y="150" width="10" height="10" fill="black" />
-                                        <rect x="170" y="150" width="10" height="10" fill="black" />
-                                        <rect x="150" y="170" width="10" height="10" fill="black" />
-                                        <rect x="170" y="170" width="10" height="10" fill="black" />
-                                    </svg>
-                                </div>
-                                <p className="text-xs text-center opacity-75 mt-4">
-                                    Code: {ticket.qrCode}
+                <div className="grid gap-8 p-5 sm:p-8 md:grid-cols-[1fr_0.85fr]">
+                    <div className="grid content-start gap-7">
+                        <section>
+                            <h2 className="text-xl">Informations de l’événement</h2>
+                            <div className="mt-4 grid gap-4">
+                                {isValid && <p className="flex items-start gap-3 text-sm">
+                                    <CalendarDays aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                                    <span><span className="block text-xs text-ink-muted">Date et heure</span><span className="mt-1 block font-medium text-ink">{formatDate(event.startDate)} · {formatTime(event.startDate)}</span></span>
+                                </p>}
+                                <p className="flex items-start gap-3 text-sm">
+                                    <MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                                    <span><span className="block text-xs text-ink-muted">Lieu</span><span className="mt-1 block font-medium text-ink">{event.location ?? "—"}</span></span>
                                 </p>
                             </div>
+                        </section>
+
+                        <section>
+                            <h2 className="text-xl">Participant</h2>
+                            <div className="mt-4 grid gap-4">
+                                <p className="flex items-start gap-3 text-sm">
+                                    <UserRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                                    <span><span className="block text-xs text-ink-muted">Nom</span><span className="mt-1 block font-medium text-ink">{user ? [user.firstName, user.name].join(" ") : "—"}</span></span>
+                                </p>
+                                <p className="flex items-start gap-3 text-sm">
+                                    <Ticket aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                                    <span><span className="block text-xs text-ink-muted">Code du billet</span><span className="mt-1 block break-all font-mono font-medium text-ink">{ticket.qrCode}</span></span>
+                                </p>
+                            </div>
+                        </section>
+                    </div>
+
+                    {isValid ? <section>
+                        <h2 className="text-xl">Votre code d’accès</h2>
+                        <div className="mt-4 rounded-lg bg-surface-alt p-4">
+                            <p className="mb-3 text-center text-sm text-ink-muted">Code associé à votre billet</p>
+                            <div className="mx-auto grid min-h-48 w-full place-items-center rounded-md bg-white p-4 text-center text-sm text-ink shadow-sm">
+                                <QRCodeSVG value={ticket.qrCode} size={180} level="M" title={`Code QR du billet pour ${event.title ?? "l’événement"}`} />
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <h4 className="text-[#3B82F6] mb-2">Informations importantes</h4>
-                        <ul className="text-sm text-gray-700 space-y-1">
-                            <li>• Arrivez 30 minutes avant le début de l'événement</li>
-                            <li>• Présentez ce billet sur votre téléphone ou imprimé</li>
-                            <li>• Le billet est valable pour une seule entrée</li>
-                            <li>• Une pièce d'identité pourra être demandée</li>
-                        </ul>
-                    </div>
-
-                    <div className="flex gap-4">
-                        <button className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-[#3B82F6] text-white rounded-lg hover:bg-[#2563EB] transition-colors shadow-lg">
-                            <Download className="w-5 h-5" />
-                            Télécharger le billet
-                        </button>
-                        <button className="px-6 py-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                            Partager
-                        </button>
-                    </div>
+                    </section> : <section className="rounded-md bg-surface-alt p-5">
+                        <h2 className="text-xl">Code d’accès indisponible</h2>
+                        <p className="mt-2 text-sm leading-6 text-ink-muted">{event.status === "cancelled" ? "Cet événement a été annulé. Ce billet ne permet plus l’accès." : event.status === "ended" ? "La période d’accès à cet événement est terminée." : event.status !== "published" ? "Les contrôles d’accès ne sont pas ouverts pour cet événement." : "Ce billet a déjà été utilisé ou annulé."}</p>
+                    </section>}
                 </div>
-            </div>
+
+                {canCancel && (
+                    <div className="flex justify-end border-t border-border p-5 sm:px-8">
+                        <Button type="button" variant="outline" onClick={handleCancel} loading={pending}>Annuler mon inscription</Button>
+                    </div>
+                )}
+            </Card>
         </div>
     );
 }

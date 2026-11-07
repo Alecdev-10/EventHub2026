@@ -1,30 +1,36 @@
+import { lazy, Suspense } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 
 import ProtectedRoute from "./ProtectedRoute";
 
 import LoginPage from "../pages/Login";
 import RegisterPage from "../pages/Register";
+import ContactPage from "../pages/Contact";
 
 import UserLayout from "../layouts/UserLayout";
 import ScanAgentLayout from "../layouts/ScanAgentLayout";
 
-import UserDashboard from "../pages/user/Dashboard";
-import EventsList from "../pages/user/EventsList";
-import EventDetails from "../pages/user/EventDetails";
-import UserTickets from "../pages/user/Tickets";
-import UserTicketDetail from "../pages/user/TicketDetail";
-import Invitations from "../pages/user/Invitations";
-import Profile from "../pages/user/Profile";
+const UserDashboard = lazy(() => import("../pages/user/Dashboard"));
+const EventsList = lazy(() => import("../pages/user/EventsList"));
+const EventDetails = lazy(() => import("../pages/user/EventDetails"));
+const UserTickets = lazy(() => import("../pages/user/Tickets"));
+const UserTicketDetail = lazy(() => import("../pages/user/TicketDetail"));
+const Invitations = lazy(() => import("../pages/user/Invitations"));
+const Profile = lazy(() => import("../pages/user/Profile"));
 
-import ScanAgentDashboard from "../pages/scan-agent/Dashboard";
-import ScanAgentEvents from "../pages/scan-agent/Events";
-import ScanAgentScanner from "../pages/scan-agent/Scanner";
+const ScanAgentDashboard = lazy(() => import("../pages/scan-agent/Dashboard"));
+const ScanAgentEvents = lazy(() => import("../pages/scan-agent/Events"));
+const ScanAgentScanner = lazy(() => import("../pages/scan-agent/Scanner"));
 
 export default function AppRoutes() {
     return (
+        <Suspense fallback={<div role="status" className="mx-auto max-w-7xl rounded-lg border border-border bg-surface px-6 py-10 text-center text-sm text-ink-muted">Ouverture de votre espace…</div>}>
         <Routes>
-            <Route path="/Login" element={<LoginPage />} />
-            <Route path="/Register" element={<RegisterPage />} />
+            <Route path="/login" caseSensitive element={<LoginPage />} />
+            <Route path="/register" caseSensitive element={<RegisterPage />} />
+            <Route path="/contact" caseSensitive element={<ContactPage />} />
+            <Route path="/Login" caseSensitive element={<Navigate to="/login" replace />} />
+            <Route path="/Register" caseSensitive element={<Navigate to="/register" replace />} />
 
             <Route element={<ProtectedRoute roles={["participant"]} />}>
                 <Route path="/user" element={<UserLayout />}>
@@ -38,7 +44,7 @@ export default function AppRoutes() {
                 </Route>
             </Route>
 
-            <Route element={<ProtectedRoute roles={["scanAgent", "superAdmin", "eventManager"]} />}>
+            <Route element={<ProtectedRoute roles={["scanAgent"]} />}>
                 <Route path="/scan-agent" element={<ScanAgentLayout />}>
                     <Route index element={<ScanAgentDashboard />} />
                     <Route path="events" element={<ScanAgentEvents />} />
@@ -46,8 +52,9 @@ export default function AppRoutes() {
                 </Route>
             </Route>
 
-            <Route path="/" element={<Navigate to="/Login" replace />} />
-            <Route path="*" element={<Navigate to="/Login" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </Suspense>
     );
 }

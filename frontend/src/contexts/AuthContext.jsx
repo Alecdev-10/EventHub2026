@@ -20,8 +20,14 @@ export function AuthProvider({ children }) {
 
     const login = async (credentials) => {
         const { data } = await AuthApi.login(credentials);
+        if (data.backoffice_login_url) {
+            return {
+                role: data.role,
+                backofficeLoginUrl: data.backoffice_login_url,
+            };
+        }
         persistSession(data);
-        return data.user.role;
+        return { role: data.user.role };
     };
 
     const register = async (payload) => {

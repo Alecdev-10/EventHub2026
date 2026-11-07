@@ -15,6 +15,12 @@ export function formatTime(isoString) {
     });
 }
 
+export function formatPrice(price) {
+    if (price === null || price === undefined || price === "") return "Gratuit";
+
+    return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(price))} FCFA`;
+}
+
 export const eventStatusLabels = {
     draft: "Brouillon",
     published: "À venir",

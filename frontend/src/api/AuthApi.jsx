@@ -15,3 +15,9 @@ export const logout = async () => {
 export const me = async () => {
     return axiosClient.get("/me");
 };
+
+export const createSupportRequest = async (payload, idempotencyKey) => {
+    return axiosClient.post("/support-requests", payload, {
+        headers: { "Idempotency-Key": idempotencyKey },
+    });
+};

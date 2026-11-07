@@ -1,119 +1,126 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Ticket, Calendar, MapPin, Download, Eye } from "lucide-react";
-import { tickets } from "../../mocks/tickets";
+import { QRCodeSVG } from "qrcode.react";
+import { CalendarDays, Eye, MapPin, Ticket } from "lucide-react";
+import { getMyTickets } from "../../api/EventApi";
 import { formatDate, formatTime, ticketStatusLabels } from "../../utils/format";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import EmptyState from "../../components/ui/EmptyState";
+import PageHeader from "../../components/ui/PageHeader";
+import { Stagger, StaggerItem } from "../../components/motion/Stagger";
 
 export default function UserTickets() {
-    return (
-        <div className="max-w-6xl mx-auto">
-            <div className="mb-8">
-                <h1>Mes Billets</h1>
-                <p className="text-gray-600 mt-2">
-                    Tous vos billets d'événements en un seul endroit
-                </p>
-            </div>
+    const [tickets, setTickets] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {tickets.map((ticket) => (
-                    <div
-                        key={ticket.id}
-                        className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow"
-                    >
-                        <div className="bg-gradient-to-r from-[#3B82F6] to-[#2563EB] p-6 text-white">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <Ticket className="w-6 h-6" />
-                                    <div>
-                                        <p className="text-sm opacity-90">Billet d'entrée</p>
-                                        <p className="text-xs opacity-75 mt-1">{ticket.ticketNumber}</p>
+    const loadTickets = useCallback(async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            setTickets(await getMyTickets());
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadTickets();
+    }, [loadTickets]);
+
+    return (
+        <div className="mx-auto max-w-6xl">
+            <PageHeader
+                title="Mes billets"
+                description="Retrouvez ici vos billets et les informations utiles pour chaque événement."
+            />
+
+            {loading ? (
+                <div role="status" className="rounded-lg border border-border bg-surface px-6 py-10 text-center text-sm text-ink-muted">Chargement de vos billets…</div>
+            ) : error ? (
+                <Card>
+                    <EmptyState
+                        title="Vos billets ne sont pas accessibles"
+                        description="Vérifiez votre connexion au serveur puis réessayez."
+                        action={<Button type="button" variant="outline" onClick={loadTickets}>Réessayer</Button>}
+                    />
+                </Card>
+            ) : tickets.length === 0 ? (
+                <Card>
+                    <EmptyState
+                        icon={Ticket}
+                        title="Aucun billet pour le moment"
+                        description="Inscrivez-vous à un événement pour recevoir votre billet."
+                        action={<Link to="/user/events" className="inline-flex min-h-11 items-center rounded-md bg-brand px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong">Découvrir les événements</Link>}
+                    />
+                </Card>
+            ) : (
+                <Stagger className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                    {tickets.map((ticket) => (
+                        <StaggerItem key={ticket.id}>
+                            {(() => {
+                                const usable = ticket.status === "confirmed" && ticket.event?.status === "published";
+                                const label = ticket.event?.status === "cancelled"
+                                    ? "Événement annulé"
+                                    : ticket.event?.status === "ended" ? "Événement terminé"
+                                        : ticket.event?.status !== "published" ? "Accès suspendu"
+                                            : ticketStatusLabels[ticket.status] ?? ticket.status;
+                                return (
+                            <Card className="h-full overflow-hidden">
+                                <div className="relative overflow-hidden bg-ink px-5 py-5 text-white sm:px-6">
+                                    <div className="absolute -right-8 -top-16 h-44 w-44 rounded-full border border-white/10" />
+                                    <div className="relative flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <p className="mb-2 flex items-center gap-2 text-sm text-white/65">
+                                                <Ticket aria-hidden="true" className="h-4 w-4 text-brand" /> Billet d’entrée
+                                            </p>
+                                            {usable && <p className="break-all text-xs font-medium tracking-wide text-white/55">{ticket.qrCode}</p>}
+                                            <h2 className="mt-3 truncate text-2xl text-white">{ticket.event?.title ?? "Événement"}</h2>
+                                        </div>
+                                        <Badge tone={usable ? "success" : "neutral"}>
+                                            {label}
+                                        </Badge>
                                     </div>
                                 </div>
-                                <span
-                                    className={`px-3 py-1 rounded-full text-sm ${
-                                        ticket.status === "confirmed"
-                                            ? "bg-green-500 bg-opacity-90"
-                                            : "bg-gray-500 bg-opacity-90"
-                                    }`}
-                                >
-                                    {ticketStatusLabels[ticket.status]}
-                                </span>
-                            </div>
-                            <h3 className="mb-2">{ticket.eventTitle}</h3>
-                        </div>
 
-                        <div className="p-6">
-                            <div className="space-y-3 mb-6">
-                                <div className="flex items-center gap-3 text-gray-600">
-                                    <Calendar className="w-5 h-5 text-[#3B82F6]" />
-                                    <div>
-                                        <p className="text-sm text-gray-500">Date et heure</p>
-                                        <p className="text-gray-800">
-                                            {formatDate(ticket.generatedAt)} • {formatTime(ticket.generatedAt)}
+                                <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:p-6">
+                                    <div className="grid content-start gap-4">
+                                        <p className="flex items-start gap-3 text-sm text-ink-muted">
+                                            <CalendarDays aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                                            <span>
+                                                <span className="block text-xs text-ink-muted/80">Date et heure</span>
+                                                <span className="mt-1 block font-medium text-ink">{formatDate(ticket.event?.startDate)} · {formatTime(ticket.event?.startDate)}</span>
+                                            </span>
+                                        </p>
+                                        <p className="flex items-start gap-3 text-sm text-ink-muted">
+                                            <MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                                            <span>
+                                                <span className="block text-xs text-ink-muted/80">Lieu</span>
+                                                <span className="mt-1 block font-medium text-ink">{ticket.event?.location ?? "—"}</span>
+                                            </span>
                                         </p>
                                     </div>
+                                    {usable ? <div className="grid h-28 w-28 place-items-center self-center rounded-md border border-border bg-white p-2"><QRCodeSVG value={ticket.qrCode} size={96} level="M" title={`Code QR du billet pour ${ticket.event?.title ?? "l’événement"}`} /></div> : <p className="self-center text-xs text-ink-muted">Code d’accès indisponible</p>}
                                 </div>
-                                <div className="flex items-center gap-3 text-gray-600">
-                                    <MapPin className="w-5 h-5 text-[#3B82F6]" />
-                                    <div>
-                                        <p className="text-sm text-gray-500">Lieu</p>
-                                        <p className="text-gray-800">{ticket.eventLocation}</p>
-                                    </div>
+
+                                <div className="flex border-t border-border p-4 sm:p-5">
+                                    <Link
+                                        to={`/user/tickets/${ticket.id}`}
+                                        className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-strong"
+                                    >
+                                        <Eye aria-hidden="true" className="h-4 w-4" /> Afficher le billet
+                                    </Link>
                                 </div>
-                            </div>
-
-                            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                                <div className="w-24 h-24 mx-auto bg-white rounded-lg flex items-center justify-center">
-                                    <svg viewBox="0 0 120 120" className="w-full h-full p-2">
-                                        <rect x="0" y="0" width="120" height="120" fill="white" />
-                                        <rect x="10" y="10" width="30" height="30" fill="black" />
-                                        <rect x="80" y="10" width="30" height="30" fill="black" />
-                                        <rect x="10" y="80" width="30" height="30" fill="black" />
-                                        <rect x="50" y="20" width="8" height="8" fill="black" />
-                                        <rect x="65" y="20" width="8" height="8" fill="black" />
-                                        <rect x="50" y="50" width="30" height="30" fill="black" />
-                                        <rect x="55" y="55" width="20" height="20" fill="white" />
-                                        <rect x="85" y="50" width="8" height="8" fill="black" />
-                                        <rect x="20" y="100" width="8" height="8" fill="black" />
-                                        <rect x="50" y="90" width="8" height="8" fill="black" />
-                                        <rect x="65" y="90" width="8" height="8" fill="black" />
-                                        <rect x="85" y="90" width="8" height="8" fill="black" />
-                                        <rect x="100" y="90" width="8" height="8" fill="black" />
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <Link
-                                    to={`/user/tickets/${ticket.id}`}
-                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#3B82F6] text-white rounded-lg hover:bg-[#2563EB] transition-colors"
-                                >
-                                    <Eye className="w-4 h-4" />
-                                    Afficher
-                                </Link>
-                                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-[#3B82F6] text-[#3B82F6] rounded-lg hover:bg-blue-50 transition-colors">
-                                    <Download className="w-4 h-4" />
-                                    Télécharger
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {tickets.length === 0 && (
-                <div className="bg-white rounded-xl shadow-sm p-12 border border-gray-200 text-center">
-                    <Ticket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-gray-800 mb-2">Aucun billet</h3>
-                    <p className="text-gray-500 mb-6">
-                        Vous n'avez pas encore de billets. Inscrivez-vous à un événement pour recevoir votre billet.
-                    </p>
-                    <Link
-                        to="/user/events"
-                        className="inline-block px-6 py-3 bg-[#3B82F6] text-white rounded-lg hover:bg-[#2563EB] transition-colors"
-                    >
-                        Voir les événements
-                    </Link>
-                </div>
+                            </Card>
+                                );
+                            })()}
+                        </StaggerItem>
+                    ))}
+                </Stagger>
             )}
         </div>
     );

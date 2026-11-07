@@ -1,144 +1,196 @@
-import { useParams, Link } from "react-router-dom";
-import { Calendar, MapPin, Users, ArrowLeft, CheckCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, CalendarDays, CheckCircle, MapPin, Ticket, Users } from "lucide-react";
 import ImageWithFallback from "../../components/ImageWithFallback";
-import { getEventById } from "../../mocks/events";
-import { formatDate, formatTime } from "../../utils/format";
+import { cancelTicket, getEvent, getMyTickets, registerForEvent } from "../../api/EventApi";
+import { useToast } from "../../contexts/ToastContext";
+import { formatDate, formatPrice, formatTime } from "../../utils/format";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import EmptyState from "../../components/ui/EmptyState";
 
-const attendees = [
-    { name: "Marie Dubois", status: "Confirmé" },
-    { name: "Pierre Martin", status: "Confirmé" },
-    { name: "Sophie Laurent", status: "En attente" },
-    { name: "Jean Dupont", status: "Confirmé" },
-    { name: "Emma Bernard", status: "Confirmé" },
-];
+function formatRequestError(error, action) {
+    const code = error.response?.data?.code;
+    if (code === "payment_required") return "Cet événement est payant. L’inscription en ligne sera disponible après l’intégration du paiement.";
+    if (code === "registration_closed") return "Les inscriptions sont fermées car l’événement a commencé ou est terminé.";
+    if (code === "event_unavailable") return "Les inscriptions ne sont pas ouvertes pour cet événement.";
+    if (action === "register" && error.response?.status === 409) return "Vous êtes déjà inscrit à cet événement.";
+    if (action === "register" && error.response?.status === 422) {
+        const message = String(error.response.data?.message ?? "").toLowerCase();
+        return message.includes("full") || message.includes("complet")
+            ? "Cet événement affiche complet."
+            : error.response.data?.message ?? "L’inscription n’a pas pu aboutir.";
+    }
+    if (action === "cancel" && error.response?.status === 422) {
+        return error.response.data?.message ?? "L’inscription ne peut pas être annulée.";
+    }
+    if (!error.response) return "Le serveur est injoignable. Vérifiez votre connexion puis réessayez.";
+    return action === "cancel" ? "L’annulation n’a pas abouti. Réessayez." : "L’inscription n’a pas abouti. Réessayez.";
+}
 
 export default function EventDetails() {
     const { id } = useParams();
-    const event = getEventById(id);
+    const { notify } = useToast();
+    const [event, setEvent] = useState(null);
+    const [ticket, setTicket] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [pending, setPending] = useState(false);
 
-    if (!event) {
+    const loadEvent = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const [eventData, userTickets] = await Promise.all([getEvent(id), getMyTickets()]);
+            setEvent(eventData);
+            setTicket(userTickets.find((item) => Number(item.eventId) === Number(id)
+                && ["confirmed", "checkedIn"].includes(item.status)) ?? null);
+        } catch (requestError) {
+            setError(requestError.response?.status === 404 ? "not-found" : "unavailable");
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        loadEvent();
+    }, [loadEvent]);
+
+    const handleRegister = async () => {
+        setPending(true);
+        try {
+            const createdTicket = await registerForEvent(event.id);
+            setTicket(createdTicket);
+            setEvent((current) => ({ ...current, activeRegistered: current.activeRegistered + 1 }));
+            notify({ tone: "success", title: "Inscription confirmée", description: event.title });
+        } catch (requestError) {
+            notify({ tone: "error", title: "Inscription impossible", description: formatRequestError(requestError, "register") });
+        } finally {
+            setPending(false);
+        }
+    };
+
+    const handleCancel = async () => {
+        if (!window.confirm("Voulez-vous annuler votre inscription à cet événement ?")) return;
+        setPending(true);
+        try {
+            await cancelTicket(ticket.id);
+            setTicket(null);
+            setEvent((current) => ({ ...current, activeRegistered: Math.max(0, current.activeRegistered - 1) }));
+            notify({ tone: "success", title: "Inscription annulée", description: event.title });
+        } catch (requestError) {
+            notify({ tone: "error", title: "Annulation impossible", description: formatRequestError(requestError, "cancel") });
+        } finally {
+            setPending(false);
+        }
+    };
+
+    if (loading) {
+        return <div role="status" className="mx-auto max-w-5xl rounded-lg border border-border bg-surface px-6 py-10 text-center text-sm text-ink-muted">Chargement de l’événement…</div>;
+    }
+
+    if (error || !event) {
+        const notFound = error === "not-found";
         return (
-            <div className="max-w-5xl mx-auto text-center py-12">
-                <p className="text-gray-500">Événement introuvable.</p>
-                <Link to="/user/events" className="text-[#3B82F6] hover:underline">
-                    Retour aux événements
-                </Link>
+            <div className="mx-auto max-w-5xl">
+                <Card>
+                    <EmptyState
+                        title={notFound ? "Événement introuvable" : "Événement indisponible"}
+                        description={notFound ? "Cet événement n’est plus disponible à cette adresse." : "Vérifiez votre connexion au serveur puis réessayez."}
+                        action={notFound ? (
+                            <Link to="/user/events" className="inline-flex min-h-11 items-center rounded-md bg-brand px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-strong">Retour aux événements</Link>
+                        ) : (
+                            <Button type="button" variant="outline" onClick={loadEvent}>Réessayer</Button>
+                        )}
+                    />
+                </Card>
             </div>
         );
     }
 
+    const isFull = event.activeRegistered >= event.maxCapacity;
+    const isPaid = event.price !== null && event.price !== undefined;
+    const hasStarted = new Date(event.startDate).getTime() <= Date.now();
+    const canRegister = event.status === "published" && !isFull && !hasStarted && !ticket && !isPaid;
+    const canCancel = ticket?.status === "confirmed" && !hasStarted;
+
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="mx-auto max-w-5xl">
             <Link
                 to="/user/events"
-                className="inline-flex items-center gap-2 text-[#3B82F6] hover:underline mb-6"
+                className="mb-5 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-brand transition-colors hover:text-brand-strong"
             >
-                <ArrowLeft className="w-4 h-4" />
-                Retour aux événements
+                <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                Tous les événements
             </Link>
 
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 mb-6">
-                <ImageWithFallback
-                    src={event.image}
-                    alt={event.title}
-                    className="w-full h-80 object-cover"
-                />
-                <div className="p-8">
-                    <div className="flex items-start justify-between mb-6">
-                        <div>
-                            <h1 className="mb-4">{event.title}</h1>
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-gray-600">
-                                    <Calendar className="w-5 h-5" />
-                                    <span>{formatDate(event.startDate)} à {formatTime(event.startDate)}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600">
-                                    <MapPin className="w-5 h-5" />
-                                    <span>{event.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600">
-                                    <Users className="w-5 h-5" />
-                                    <span>{event.activeRegistered} / {event.maxCapacity} participants</span>
-                                </div>
+            <Card className="mb-6 overflow-hidden">
+                <ImageWithFallback src={event.image || undefined} alt={event.title} className="h-56 w-full object-cover sm:h-80" />
+                <div className="p-5 sm:p-8">
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                            <h1 className="text-3xl sm:text-4xl">{event.title}</h1>
+                            <div className="mt-5 grid gap-3 text-sm text-ink-muted">
+                                <p className="flex items-center gap-2.5">
+                                    <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-brand" />
+                                    {formatDate(event.startDate)} à {formatTime(event.startDate)}
+                                </p>
+                                <p className="flex items-center gap-2.5">
+                                    <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-brand" />
+                                    {event.location}
+                                </p>
+                                <p className="flex items-center gap-2.5">
+                                    <Users aria-hidden="true" className="h-4 w-4 shrink-0 text-brand" />
+                                    {event.activeRegistered} / {event.maxCapacity} participants
+                                </p>
+                                <p className="flex items-center gap-2.5 font-semibold text-ink">
+                                    <span aria-hidden="true" className="w-9 shrink-0 text-xs font-bold uppercase text-brand">Prix</span>
+                                    {formatPrice(event.price)}
+                                </p>
                             </div>
+                            {isPaid && <p className="mt-3 text-sm text-ink-muted">Inscription en ligne indisponible pour le moment.</p>}
                         </div>
-                        <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5" />
-                            Inscrit
-                        </span>
+                        {ticket ? (
+                            <Badge tone="success" className="self-start px-4 py-2 text-sm">
+                                <CheckCircle aria-hidden="true" className="h-4 w-4" /> Inscrit
+                            </Badge>
+                        ) : (
+                            <Button type="button" onClick={handleRegister} loading={pending} disabled={!canRegister}>
+                                {isPaid ? "Indisponible" : isFull ? "Complet" : hasStarted ? "Événement commencé" : "Participer"}
+                            </Button>
+                        )}
                     </div>
 
-                    <div className="border-t border-gray-200 pt-6">
-                        <h3 className="mb-3">Description</h3>
-                        <p className="text-gray-600 leading-relaxed">{event.description}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <h3 className="mb-4">Liste des participants</h3>
-                    <div className="space-y-3">
-                        {attendees.map((attendee, idx) => (
-                            <div
-                                key={idx}
-                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-[#3B82F6] rounded-full flex items-center justify-center text-white">
-                                        {attendee.name.charAt(0)}
-                                    </div>
-                                    <span className="text-gray-800">{attendee.name}</span>
-                                </div>
-                                <span
-                                    className={`px-3 py-1 rounded-full text-sm ${
-                                        attendee.status === "Confirmé"
-                                            ? "bg-green-100 text-green-700"
-                                            : "bg-orange-100 text-orange-700"
-                                    }`}
-                                >
-                                    {attendee.status}
-                                </span>
-                            </div>
-                        ))}
+                    <div className="mt-7 border-t border-border pt-6">
+                        <h2 className="text-xl">À propos de l’événement</h2>
+                        <p className="mt-3 max-w-3xl text-sm leading-7 text-ink-muted">{event.description}</p>
                     </div>
                 </div>
+            </Card>
 
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                    <h3 className="mb-4">Votre billet</h3>
-                    <div className="bg-gradient-to-br from-[#3B82F6] to-[#2563EB] rounded-xl p-6 text-white">
-                        <p className="text-sm opacity-90 mb-2">Événement</p>
-                        <h4 className="mb-4">{event.title}</h4>
-                        <div className="bg-white rounded-lg p-4 mb-4">
-                            <div className="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                                <svg viewBox="0 0 200 200" className="w-full h-full p-2">
-                                    <rect x="0" y="0" width="200" height="200" fill="white" />
-                                    <rect x="10" y="10" width="50" height="50" fill="black" />
-                                    <rect x="140" y="10" width="50" height="50" fill="black" />
-                                    <rect x="10" y="140" width="50" height="50" fill="black" />
-                                    <rect x="70" y="30" width="10" height="10" fill="black" />
-                                    <rect x="90" y="30" width="10" height="10" fill="black" />
-                                    <rect x="110" y="30" width="10" height="10" fill="black" />
-                                    <rect x="70" y="70" width="60" height="60" fill="black" />
-                                    <rect x="80" y="80" width="40" height="40" fill="white" />
-                                    <rect x="150" y="70" width="10" height="10" fill="black" />
-                                    <rect x="170" y="70" width="10" height="10" fill="black" />
-                                    <rect x="30" y="170" width="10" height="10" fill="black" />
-                                    <rect x="70" y="150" width="10" height="10" fill="black" />
-                                    <rect x="90" y="150" width="10" height="10" fill="black" />
-                                    <rect x="110" y="150" width="10" height="10" fill="black" />
-                                    <rect x="130" y="150" width="10" height="10" fill="black" />
-                                    <rect x="150" y="150" width="10" height="10" fill="black" />
-                                    <rect x="170" y="150" width="10" height="10" fill="black" />
-                                </svg>
-                            </div>
+            {ticket && (
+                <div className="mt-6 max-w-2xl">
+                    <Card className="overflow-hidden">
+                        <div className="border-b border-border px-5 py-5 sm:px-6">
+                            <p className="text-sm text-ink-muted">Accès à l’événement</p>
+                            <h2 className="mt-1 text-xl">Votre billet</h2>
                         </div>
-                        <p className="text-sm text-center opacity-90">
-                            Présentez ce QR code à l'entrée
-                        </p>
-                    </div>
+                        <div className="p-5 sm:p-6">
+                            <div className="rounded-lg bg-ink p-5 text-white">
+                                <p className="text-xs font-medium text-white/60">Code de votre billet</p>
+                                <p className="mt-3 break-all font-mono text-sm text-white">{ticket.qrCode}</p>
+                                <p className="mt-4 text-sm text-white/70">Votre inscription est enregistrée. Conservez ce code pour retrouver votre billet.</p>
+                            </div>
+                            {canCancel && (
+                                <Button type="button" variant="outline" className="mt-4 w-full" onClick={handleCancel} loading={pending}>
+                                    Annuler mon inscription
+                                </Button>
+                            )}
+                        </div>
+                    </Card>
                 </div>
-            </div>
+            )}
         </div>
     );
 }
