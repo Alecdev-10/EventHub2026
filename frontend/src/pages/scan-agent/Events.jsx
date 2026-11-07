@@ -1,102 +1,77 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, MapPin, Users, QrCode, Clock } from "lucide-react";
-import { events } from "../../mocks/events";
-import { formatDate, formatTime } from "../../utils/format";
-
-// Progression de scan simulée par événement (le vrai check-in sera câblé sur l'API plus tard).
-const scanProgress = { 1: 87, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+import { CalendarDays, Clock3, MapPin, QrCode, Users } from "lucide-react";
+import { getEvents, getRecentCheckins } from "../../api/EventApi";
+import { formatDate, formatTime, eventStatusLabels } from "../../utils/format";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import EmptyState from "../../components/ui/EmptyState";
+import PageHeader from "../../components/ui/PageHeader";
 
 export default function ScanAgentEvents() {
-    const assignedEvents = events
-        .filter((event) => event.status === "published")
-        .map((event) => {
-            const scanned = scanProgress[event.id] ?? 0;
-            return {
-                ...event,
-                scanned,
-                pending: event.activeRegistered - scanned,
-                inProgress: scanned > 0 && scanned < event.activeRegistered,
-            };
-        });
+    const [events, setEvents] = useState([]);
+    const [eventCounts, setEventCounts] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    const loadEvents = useCallback(async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            const [assigned, scans] = await Promise.all([getEvents(), getRecentCheckins(1)]);
+            setEvents(assigned);
+            setEventCounts(scans.eventCounts ?? {});
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadEvents(); }, [loadEvents]);
 
     return (
-        <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-                <h1>Mes Événements</h1>
-                <p className="text-gray-600 mt-2">
-                    Liste des événements dont vous assurez le contrôle d'accès
-                </p>
-            </div>
+        <div className="mx-auto max-w-7xl">
+            <PageHeader title="Mes événements" description="Les événements dont vous assurez le contrôle d’accès." />
+            {loading ? (
+                <div role="status" className="rounded-lg border border-border bg-surface px-6 py-10 text-center text-sm text-ink-muted">Chargement des affectations…</div>
+            ) : error ? (
+                <Card><EmptyState title="Événements indisponibles" description="Impossible de récupérer vos affectations." action={<Button type="button" variant="outline" onClick={loadEvents}>Réessayer</Button>} /></Card>
+            ) : events.length === 0 ? (
+                <Card><EmptyState title="Aucun événement affecté" description="Les événements qui vous seront confiés apparaîtront ici." /></Card>
+            ) : (
+                <div className="grid gap-4">
+                    {events.map((event) => {
+                        const counts = eventCounts[event.id] ?? {};
+                        const scanned = Number(counts.valid ?? 0);
+                        const expected = Number(event.activeRegistered ?? 0);
+                        const pending = Math.max(0, expected - scanned);
+                        const attendance = expected > 0 ? Math.min(100, Math.round((scanned / expected) * 100)) : 0;
+                        const canScan = event.status === "published";
 
-            <div className="grid grid-cols-1 gap-6">
-                {assignedEvents.map((event) => (
-                    <div
-                        key={event.id}
-                        className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow"
-                    >
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-start gap-4">
-                                <div className="w-14 h-14 bg-[#3B82F6] rounded-xl flex items-center justify-center text-white">
-                                    <Calendar className="w-7 h-7" />
-                                </div>
-                                <div>
-                                    <h2 className="text-gray-800 mb-2">{event.title}</h2>
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2 text-gray-600 text-sm">
-                                            <Clock className="w-4 h-4" />
-                                            <span>{formatDate(event.startDate)} • {formatTime(event.startDate)}</span>
+                        return (
+                            <Card key={event.id} className="p-5 sm:p-6">
+                                <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+                                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-brand-subtle text-brand"><CalendarDays aria-hidden="true" className="h-6 w-6" /></span>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-3"><h2 className="text-xl">{event.title}</h2><Badge tone={event.status === "published" ? "success" : "neutral"}>{eventStatusLabels[event.status] ?? event.status}</Badge></div>
+                                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink-muted">
+                                            <p className="flex items-center gap-2"><Clock3 aria-hidden="true" className="h-4 w-4 text-brand" />{formatDate(event.startDate)} · {formatTime(event.startDate)}</p>
+                                            <p className="flex items-center gap-2"><MapPin aria-hidden="true" className="h-4 w-4 text-brand" />{event.location}</p>
+                                            <p className="flex items-center gap-2"><Users aria-hidden="true" className="h-4 w-4 text-brand" />{expected} participants attendus</p>
                                         </div>
-                                        <div className="flex items-center gap-2 text-gray-600 text-sm">
-                                            <MapPin className="w-4 h-4" />
-                                            <span>{event.location}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-gray-600 text-sm">
-                                            <Users className="w-4 h-4" />
-                                            <span>{event.activeRegistered} participants attendus</span>
+                                        <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+                                            {[["Entrées validées", scanned, "text-success", "bg-success/5"], ["Billets restants", pending, "text-warning", "bg-warning/5"], ["Présence", `${attendance}%`, "text-brand", "bg-brand-subtle/60"]].map(([label, value, tone, background]) => <div key={label} className={["rounded-md px-3 py-3 text-center", background].join(" ")}><p className="text-xs text-ink-muted">{label}</p><p className={["mt-1 text-xl font-semibold", tone].join(" ")}>{value}</p></div>)}
                                         </div>
                                     </div>
+                                    {canScan && <Link to="/scan-agent/scanner" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-strong lg:mt-1"><QrCode aria-hidden="true" className="h-4 w-4" />Scanner les billets</Link>}
                                 </div>
-                            </div>
-                            <span
-                                className={`px-4 py-2 rounded-lg text-sm ${
-                                    event.inProgress
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-gray-100 text-gray-700"
-                                }`}
-                            >
-                                {event.inProgress ? "En cours" : "À venir"}
-                            </span>
-                        </div>
-
-                        <div className="border-t border-gray-200 pt-4 mt-4">
-                            <div className="grid grid-cols-3 gap-4 mb-4">
-                                <div className="text-center p-4 bg-green-50 rounded-lg">
-                                    <p className="text-sm text-gray-600 mb-1">Scannés</p>
-                                    <p className="text-2xl text-green-600">{event.scanned}</p>
-                                </div>
-                                <div className="text-center p-4 bg-orange-50 rounded-lg">
-                                    <p className="text-sm text-gray-600 mb-1">En attente</p>
-                                    <p className="text-2xl text-orange-600">{event.pending}</p>
-                                </div>
-                                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                                    <p className="text-sm text-gray-600 mb-1">Taux</p>
-                                    <p className="text-2xl text-[#3B82F6]">
-                                        {Math.round((event.scanned / event.activeRegistered) * 100)}%
-                                    </p>
-                                </div>
-                            </div>
-
-                            <Link
-                                to="/scan-agent/scanner"
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#3B82F6] text-white rounded-lg hover:bg-[#2563EB] transition-colors"
-                            >
-                                <QrCode className="w-5 h-5" />
-                                Scanner les billets
-                            </Link>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

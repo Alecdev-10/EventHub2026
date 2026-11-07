@@ -1,18 +1,23 @@
 import { useState } from "react";
+import { ImageOff } from "lucide-react";
 
 export default function ImageWithFallback({ src, alt, ...props }) {
-    const [error, setError] = useState(false);
+    const [failedSrc, setFailedSrc] = useState(null);
 
-    if (error) {
+    if (failedSrc === src || !src) {
         return (
             <div
-                className={`bg-gray-200 flex items-center justify-center ${props.className || ""}`}
-                style={{ minHeight: "100px" }}
+                className={["flex min-h-24 items-center justify-center bg-surface-alt text-ink-muted", props.className || ""].join(" ")}
+                role="img"
+                aria-label={alt ? alt + " — image indisponible" : "Image indisponible"}
             >
-                <span className="text-gray-400 text-sm">Image non disponible</span>
+                <span className="flex items-center gap-2 text-sm">
+                    <ImageOff aria-hidden="true" className="h-4 w-4" />
+                    Image indisponible
+                </span>
             </div>
         );
     }
 
-    return <img {...props} src={src} alt={alt} onError={() => setError(true)} />;
+    return <img {...props} src={src} alt={alt} onError={() => setFailedSrc(src)} />;
 }
