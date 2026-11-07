@@ -31,3 +31,7 @@ npm run dev
 Le dépôt racine (`EventHub2026`) contient aussi `assets/` en plus de `frontend/` : dans les réglages du projet Vercel, définir **Root Directory = `frontend`**. Le preset Vite est auto-détecté (build `npm run build`, sortie `dist`) ; `vercel.json` gère déjà la réécriture SPA nécessaire pour React Router.
 
 Variable d'environnement à définir sur Vercel : `VITE_API_URL`. Tant que le backend n'est pas déployé, la laisser vide — l'app tourne sur les données mock, seul login/register ne fonctionnera pas encore.
+
+## Démo Render
+
+Le fichier `../render.yaml` prépare le frontend comme site statique gratuit Render depuis le dossier `frontend`, avec la réécriture nécessaire à React Router. Configurez `VITE_API_URL` avec l'URL Render du backend terminée par `/api`, et `VITE_BACKOFFICE_URL` avec la même URL terminée par `/admin/login`. Après un changement d’URL, relancez le build du site statique pour intégrer les variables Vite.
