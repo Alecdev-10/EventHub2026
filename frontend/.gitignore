@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .env
 .vercel
+/.superpowers/
+/.codex/
+/.claude/
 
 # Editor directories and files
 .vscode/*

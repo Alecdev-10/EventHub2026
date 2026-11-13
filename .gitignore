@@ -1,0 +1,4 @@
+# Codex and other local agent workflow artifacts
+/.superpowers/
+/.codex/
+/.claude/
